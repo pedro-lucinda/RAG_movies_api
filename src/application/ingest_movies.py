@@ -23,10 +23,8 @@ def ingest_movies(
     skipped_count = 0
     skipped_reasons = []
     
-    # Validate and filter movies
     valid_movies_data = []
     for idx, movie_data in enumerate(movies_data, start=1):
-        # Validate essential fields
         if not movie_data.get("Const"):
             skipped_count += 1
             reason = f"Row {idx}: Missing required field 'Const' (IMDb ID)"
@@ -43,10 +41,8 @@ def ingest_movies(
         
         valid_movies_data.append(movie_data)
     
-    # Deduplicate valid movies
     unique_movies = deduplicate_movies(valid_movies_data)
     
-    # Convert to Movie entities
     movies = []
     for imdb_id, movie_data in unique_movies.items():
         try:
@@ -64,7 +60,6 @@ def ingest_movies(
             logger.warning(reason)
             continue
     
-    # Process in batches
     for i in range(0, len(movies), batch_size):
         batch = movies[i:i + batch_size]
         repository.upsert(batch)

@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from src.infrastructure.config import settings
 from src.domain.movie import Movie
-# Request Schemas
+
 class SearchMoviesRequest(BaseModel):
     query: str = Field(..., description="Search query text", min_length=1)
     n_results: int = Field(default=1, ge=1, le=100, description="Number of results to return")
@@ -10,7 +10,6 @@ class SearchMoviesRequest(BaseModel):
 class IngestMoviesRequest(BaseModel):
     file_path: str = Field(..., description="Path to CSV file")
 
-# Response Schemas
 class MovieResponse(BaseModel):
     """Movie representation for API responses."""
     imdb_id: str

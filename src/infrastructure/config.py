@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     chroma_db_path: str = "./chroma_db"
     
     # CSV configuration
-    csv_path: str = "src/data/data.csv"
+    csv_path: str = "data/data.csv"
     
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -21,5 +21,4 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-# Singleton instance
 settings = Settings()

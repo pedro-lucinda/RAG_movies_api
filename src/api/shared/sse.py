@@ -3,6 +3,11 @@ import json
 from typing import Iterator
 from datetime import datetime
 
+SSE_HEADERS = {
+    "Connection": "keep-alive",
+    "Cache-Control": "no-cache"
+}
+
 def format_sse(chunk: str) -> str:
     """Format chunk as Server-Sent Events (SSE) format."""
     return f"data: {chunk}\n\n"
@@ -39,19 +44,15 @@ def sse_stream_iterator(iterator: Iterator[str], heartbeat_interval: int = 15) -
             has_data = True
             current_time = datetime.now()
             
-            # Check if we need to send a heartbeat
             time_since_heartbeat = (current_time - last_heartbeat).total_seconds()
             if time_since_heartbeat >= heartbeat_interval:
                 yield format_sse_heartbeat()
                 last_heartbeat = current_time
             
-            # Yield the actual data chunk
             yield format_sse(chunk)
         
-        # Send completion event if we had any data
         if has_data:
             yield format_sse("[DONE]")
             
     except Exception as e:
-        # Send error event if something goes wrong during streaming
         yield format_sse_error(str(e))

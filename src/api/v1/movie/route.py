@@ -7,19 +7,14 @@ from chromadb import Collection
 from src.infrastructure.file.read_csv import read_csv
 from src.application.search_movie import search_movies as search_movies_use_case
 from src.api.v1.movie.schemas import SearchMoviesResponse, MovieResponse, IngestMoviesRequest, IngestMoviesResponse
-from src.api.presentation.sse import sse_stream_iterator, create_error_stream
+from src.api.shared.sse import sse_stream_iterator, create_error_stream, SSE_HEADERS
 from src.infrastructure.config import settings
 from src.infrastructure.database.chromadb.repository import ChromaDBMovieRepository
-from src.infrastructure.database.chromadb.settings import get_chromadb_collection
+from src.infrastructure.database.chromadb.client import get_chromadb_collection
 from src.application.ingest_movies import ingest_movies as ingest_movies_use_case
 from src.application.answer_movie_question import answer_movie_question
 from src.infrastructure.external.openai import OpenAIClient
 
-# SSE headers constant
-SSE_HEADERS = {
-    "Connection": "keep-alive",
-    "Cache-Control": "no-cache"
-}
 @get(
     "/api/search",
     dependencies={"collection": Provide(get_chromadb_collection, sync_to_thread=False)},
@@ -31,7 +26,6 @@ async def search_movies(
     n_results: int = 10
 ) -> SearchMoviesResponse:
     """Search for movies by query. Returns top 10 similar movies from ChromaDB."""
-    # Validate required parameter
     if not q or not q.strip():
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
@@ -42,19 +36,16 @@ async def search_movies(
         repository = ChromaDBMovieRepository(collection)
         movies = search_movies_use_case(repository, q, n_results)
         
-        # Empty results are valid - return empty array
         return SearchMoviesResponse(
             results=[MovieResponse.from_domain(m) for m in movies],
             count=len(movies)
         )
     except ValueError as e:
-        # Handle validation errors from use case
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
-        # Handle upstream errors (ChromaDB, etc.)
         raise HTTPException(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
@@ -70,7 +61,6 @@ async def ingest_movies(
 ) -> IngestMoviesResponse:
     """Ingest movies into the database."""
     try:
-        # 1. Read CSV file
         movies_data = read_csv(data.file_path)
     except FileNotFoundError:
         raise HTTPException(
@@ -84,13 +74,10 @@ async def ingest_movies(
         )
     
     try:
-        # 2. Create repository
         repository = ChromaDBMovieRepository(collection)
         
-        # 3. Call use case with movies_data (not file_path)
         result = ingest_movies_use_case(repository, movies_data)
         
-        # 4. Return response using the dict returned by use case
         return IngestMoviesResponse(
             message=result["message"],
             total=result["total"],
@@ -99,7 +86,6 @@ async def ingest_movies(
             skipped_reasons=result.get("skipped_reasons")
         )
     except Exception as e:
-        # Handle upstream errors (ChromaDB, etc.)
         raise HTTPException(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error ingesting movies: {str(e)}"
@@ -116,7 +102,6 @@ async def chat_stream(
     model: str = settings.openai_chat_model
 ) -> Stream:
     """Stream AI-formulated answers using RAG with ChromaDB context via SSE."""
-    # Validate required parameter - return SSE error event
     if not q or not q.strip():
         return Stream(
             content=create_error_stream("Query parameter 'q' is required and cannot be empty"),
@@ -124,21 +109,17 @@ async def chat_stream(
             headers=SSE_HEADERS
         )
     
-    # Create repository and client
     repository = ChromaDBMovieRepository(collection)
-    openai_client = OpenAIClient()
+    llm_client = OpenAIClient()
     
-    # Get the stream from the use case
-    # Errors during streaming are handled in sse_stream_iterator
     stream_iterator = answer_movie_question(
         repository=repository,
-        openai_client=openai_client,
+        llm_client=llm_client,
         question=q,
-        n_context_results=n_context_results,
-        model=model
+        model=model,
+        n_context_results=n_context_results
     )
     
-    # Wrap with SSE formatting (includes heartbeats, completion, and error handling)
     return Stream(
         content=sse_stream_iterator(stream_iterator),
         media_type="text/event-stream",

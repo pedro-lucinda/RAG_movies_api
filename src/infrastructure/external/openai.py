@@ -1,9 +1,11 @@
 from typing import Iterator
 from openai import OpenAI
+from src.domain.llm import LLMClient
 from src.infrastructure.config import settings
 
-class OpenAIClient:
-    """Generic OpenAI client for streaming completions."""
+
+class OpenAIClient(LLMClient):
+    """OpenAI implementation of LLMClient for streaming completions."""
     
     def __init__(self, api_key: str | None = None):
         self.client = OpenAI(api_key=api_key or settings.openai_api_key)
@@ -12,7 +14,7 @@ class OpenAIClient:
         self,
         question: str,
         context: str,
-        model: str = settings.openai_chat_model,
+        model: str,
         system_prompt: str | None = None
     ) -> Iterator[str]:
         """

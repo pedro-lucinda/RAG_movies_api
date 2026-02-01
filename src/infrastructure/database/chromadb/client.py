@@ -23,7 +23,3 @@ def get_chromadb_collection() -> Collection:
             embedding_function=openai_ef
         )
     return collection
-
-
-
-

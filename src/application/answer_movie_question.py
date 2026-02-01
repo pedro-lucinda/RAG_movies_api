@@ -1,24 +1,24 @@
 from typing import Iterator
 from src.domain.repository import MovieRepository
-from src.infrastructure.external.openai import OpenAIClient
-from src.infrastructure.config import settings
+from src.domain.llm import LLMClient
+
 
 def answer_movie_question(
     repository: MovieRepository,
-    openai_client: OpenAIClient,
+    llm_client: LLMClient,
     question: str,
-    n_context_results: int = 3,
-    model: str = settings.openai_chat_model
+    model: str,
+    n_context_results: int = 3
 ) -> Iterator[str]:
     """
     Answer a movie question using RAG pattern.
     
     Args:
         repository: Movie repository for context retrieval
-        openai_client: OpenAI client for streaming
+        llm_client: LLM client for streaming completions
         question: User's question
+        model: Model identifier to use
         n_context_results: Number of movies to retrieve as context
-        model: OpenAI model to use
         
     Yields:
         Chunks of the streaming response
@@ -33,7 +33,7 @@ def answer_movie_question(
         "If the context doesn't contain relevant information, say so."
     )
     
-    yield from openai_client.stream_completion(
+    yield from llm_client.stream_completion(
         question=question,
         context=context,
         model=model,
@@ -59,13 +59,11 @@ def _format_movies_as_context(movies: list) -> str:
         
         included = set()
         
-        # Add priority fields first (if they exist and have values)
         for field in priority_fields:
             if field in movie.data and movie.data[field]:
                 movie_info += f"{field}: {movie.data[field]}\n"
                 included.add(field)
         
-        # Include any remaining fields not in priority list
         for key, value in movie.data.items():
             if key not in included and value:
                 movie_info += f"{key}: {value}\n"

@@ -23,11 +23,8 @@ class ChromaDBMovieRepository(MovieRepository):
             if metadata: 
                 title = metadata.get("title", "") if isinstance(metadata, dict) else ""
                 
-                # Reconstruct full data dict for Movie entity
-                # Map back to original CSV field names for compatibility
                 data = {}
                 if isinstance(metadata, dict):
-                    # Map metadata fields back to CSV field names
                     if "title" in metadata:
                         data["Title"] = metadata["title"]
                     if "url" in metadata:
@@ -49,7 +46,6 @@ class ChromaDBMovieRepository(MovieRepository):
 
     def upsert(self, movies: List[Movie]) -> None:
         """Upsert movies into the repository."""
-        # Prepare data for ChromaDB
         ids = []
         documents = []
         metadatas = []
