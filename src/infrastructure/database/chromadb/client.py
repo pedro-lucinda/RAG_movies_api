@@ -15,7 +15,8 @@ def get_chromadb_collection() -> Collection:
     """Dependency provider for ChromaDB collection."""
     try:
         collection = chroma_client.get_collection(
-            name=settings.chromadb_collection_name
+            name=settings.chromadb_collection_name,
+            embedding_function=openai_ef
         )
     except Exception:
         collection = chroma_client.create_collection(

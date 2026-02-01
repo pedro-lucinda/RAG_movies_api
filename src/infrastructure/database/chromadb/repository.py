@@ -3,6 +3,30 @@ from typing import List
 from src.domain.movie import Movie
 from chromadb import Collection
 
+FIELD_MAPPING = {
+    "Title": "title",
+    "Original Title": "original_title",
+    "URL": "url",
+    "Title Type": "title_type",
+    "IMDb Rating": "imdb_rating",
+    "Runtime (mins)": "runtime_mins",
+    "Year": "year",
+    "Genres": "genres",
+    "Num Votes": "num_votes",
+    "Release Date": "release_date",
+    "Directors": "directors",
+    "Description": "description",
+    "Your Rating": "your_rating",
+    "Date Rated": "date_rated",
+    "Position": "position",
+    "Created": "created",
+    "Modified": "modified",
+}
+
+# Reverse mapping for retrieval
+REVERSE_FIELD_MAPPING = {v: k for k, v in FIELD_MAPPING.items()}
+
+
 class ChromaDBMovieRepository(MovieRepository):
     def __init__(self, collection: Collection):
         self.collection = collection
@@ -25,14 +49,10 @@ class ChromaDBMovieRepository(MovieRepository):
                 
                 data = {}
                 if isinstance(metadata, dict):
-                    if "title" in metadata:
-                        data["Title"] = metadata["title"]
-                    if "url" in metadata:
-                        data["URL"] = metadata["url"]
-                    if "imdb_rating" in metadata:
-                        data["IMDb Rating"] = metadata["imdb_rating"]
-                    if "year" in metadata:
-                        data["Year"] = metadata["year"]
+                    for meta_key, value in metadata.items():
+                        if meta_key in REVERSE_FIELD_MAPPING:
+                            csv_field = REVERSE_FIELD_MAPPING[meta_key]
+                            data[csv_field] = value
                 
                 movies.append(
                     Movie(
@@ -56,27 +76,22 @@ class ChromaDBMovieRepository(MovieRepository):
             
             metadata = {}
             
-            title = movie.data.get("Title")
-            if title:
-                metadata["title"] = str(title)
-            
-            url = movie.data.get("URL")
-            if url:
-                metadata["url"] = str(url)
-            
-            imdb_rating = movie.data.get("IMDb Rating")
-            if imdb_rating is not None and imdb_rating != "":
-                try:
-                    metadata["imdb_rating"] = float(imdb_rating)
-                except (ValueError, TypeError):
-                    pass
-            
-            year = movie.data.get("Year")
-            if year is not None and year != "":
-                try:
-                    metadata["year"] = int(year)
-                except (ValueError, TypeError):
-                    pass
+            for csv_field, meta_key in FIELD_MAPPING.items():
+                value = movie.data.get(csv_field)
+                if value is not None and value != "":
+                    
+                    if meta_key in ("imdb_rating", "your_rating"):
+                        try:
+                            metadata[meta_key] = float(value)
+                        except (ValueError, TypeError):
+                            metadata[meta_key] = str(value)
+                    elif meta_key in ("year", "runtime_mins", "num_votes", "position"):
+                        try:
+                            metadata[meta_key] = int(value)
+                        except (ValueError, TypeError):
+                            metadata[meta_key] = str(value)
+                    else:
+                        metadata[meta_key] = str(value)
             
             metadatas.append(metadata)
         

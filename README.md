@@ -120,3 +120,44 @@ movie_search/
         └── file/
             └── read_csv.py     # File I/O utilities
 ```
+
+## RAG Flow
+
+The `/api/chat` endpoint uses Retrieval-Augmented Generation (RAG) to answer movie-related questions:
+
+```
+┌──────┐       ┌─────┐       ┌─────────────┐       ┌────────────┐
+│ User │       │ API │       │ ChromaDBRepo│       │ OpenAIClient│
+└──┬───┘       └──┬──┘       └──────┬──────┘       └─────┬──────┘
+   │              │                 │                    │
+   │  GET /api/chat?q=question      │                    │
+   │─────────────>│                 │                    │
+   │              │                 │                    │
+   │              │ search(q, n=3)  │                    │
+   │              │────────────────>│                    │
+   │              │                 │                    │
+   │              │                 │ Embed query with   │
+   │              │                 │ OpenAI embeddings  │
+   │              │                 │                    │
+   │              │   List[Movie]   │                    │
+   │              │<────────────────│                    │
+   │              │                 │                    │
+   │              │ Format context string                │
+   │              │                 │                    │
+   │              │ stream_completion(question, context) │
+   │              │────────────────────────────────────>│
+   │              │                 │                    │
+   │              │                 │    SSE chunks      │
+   │   data: ...  │<────────────────────────────────────│
+   │<─────────────│                 │        ...         │
+   │   data: ...  │<────────────────────────────────────│
+   │<─────────────│                 │                    │
+   │              │                 │                    │
+   │ data: [DONE] │                 │                    │
+   │<─────────────│                 │                    │
+   │              │                 │                    │
+```
+
+1. **Retrieval**: The user's question is embedded using OpenAI and used to find semantically similar movies in ChromaDB
+2. **Augmentation**: Retrieved movie metadata is formatted into a context string
+3. **Generation**: The question and context are sent to OpenAI's chat model, which streams the response back via Server-Sent Events (SSE)
